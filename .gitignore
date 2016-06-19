@@ -1,3 +1,10 @@
+daemon
+pair
+hiddevs
+
+btstack/*
+init.json
+
 # Object files
 *.o
 *.ko
