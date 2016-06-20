@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <btstack.h>
+#include <btstack_client.h>
+#include <btstack_run_loop_posix.h>
 #include "btstack_util.h"
 #include "hci_cmd.h"
 #include <btstack_linked_list.h>
@@ -18,7 +20,7 @@
 
 // tracking/ignoring previously seen devs {{{
 typedef struct {
-    linked_item_t item;
+    btstack_linked_item_t item;
     bd_addr_t addr;
 } seen_dev_t;
 
@@ -35,7 +37,7 @@ int have_seen(bd_addr_t addr) {
     seen_dev_t *dev = malloc(sizeof(seen_dev_t));
     memset(dev, 0, sizeof(seen_dev_t));
     bd_addr_copy(dev->addr, addr);
-    btstack_linked_list_add(&seen_devs, (linked_item_t *)dev);
+    btstack_linked_list_add(&seen_devs, (btstack_linked_item_t *)dev);
     return 0;
 }
 // }}}
@@ -77,14 +79,14 @@ const char *pin = NULL;
 #define BREAK_UNLESS_REMOTE(packet, pos)    \
     if (!have_remote)                       \
         break;                              \
-    bt_flip_addr(addr, &packet[pos]);       \
+    reverse_bd_addr(addr, &packet[pos]);       \
     if (bd_addr_cmp(addr, remote))          \
         break;
 
 static void start_pairing(void) {
     printf("Pairing...\n");
     hiddevs_remove(remote);
-    bt_send_cmd(&l2cap_create_channel, remote, PSM_HID_INTERRUPT);
+    bt_send_cmd(&l2cap_create_channel_cmd, remote, PSM_HID_INTERRUPT);
 }
 
 void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
@@ -123,7 +125,7 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
             }
 
             have_remote = 1;
-            BD_ADDR_COPY(remote, addr);
+            bd_addr_copy(remote, addr);
             printf("\n");
             bt_send_cmd(&hci_inquiry_cancel);
             break;
@@ -180,7 +182,7 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
             uint16_t psm = little_endian_read_16(packet, 11);
             if (paired) {   // after pairing, we reopen both channels
                 if (psm == PSM_HID_INTERRUPT)
-                    bt_send_cmd(&l2cap_create_channel, remote, PSM_HID_CONTROL);
+                    bt_send_cmd(&l2cap_create_channel_cmd, remote, PSM_HID_CONTROL);
                 else if (psm == PSM_HID_CONTROL)
                     exit(0);
                 break;
@@ -225,46 +227,46 @@ void usage(void) {
 }
 
 int main(int argc, char **argv){
-    run_loop_init(RUN_LOOP_POSIX);
-    int err = bt_open();
-    if (err)
-        return err;
+	btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+	int err = bt_open();
+	if (err)
+		return err;
 
-    int c;
-    while ((c = getopt(argc, argv, "a:p:")) != -1) {
-        switch (c) {
-            case 'a':
-                // sscan_bd_addr is a bit permissive
-                if (sscan_bd_addr(optarg, remote) &&
-                    strlen(optarg) == 17)
-                    have_remote = 1;
-                else
-                    usage();
-                break;
+	int c;
+	while ((c = getopt(argc, argv, "a:p:")) != -1) {
+		switch (c) {
+			case 'a':
+				// sscan_bd_addr is a bit permissive
+				if (sscanf_bd_addr(optarg, remote) &&
+						strlen(optarg) == 17)
+					have_remote = 1;
+				else
+					usage();
+				break;
 
-            case 'p':
-                pin = optarg;
-                if (strlen(pin) > 16) {
-                    printf("Specified PIN too long!\n");
-                    exit(1);
-                }
-                break;
+			case 'p':
+				pin = optarg;
+				if (strlen(pin) > 16) {
+					printf("Specified PIN too long!\n");
+					exit(1);
+				}
+				break;
 
-            default:
-                usage();
-        }
-    }
+			default:
+				usage();
+		}
+	}
 
-    if (optind < argc)
-        usage();
+	if (optind < argc)
+		usage();
 
-    if (!pin)
-        pin = generate_pin();
-    printf("Using PIN: %s\n", pin);
+	if (!pin)
+		pin = generate_pin();
+	printf("Using PIN: %s\n", pin);
 
-    bt_register_packet_handler(packet_handler);
+	bt_register_packet_handler(packet_handler);
 	bt_send_cmd(&btstack_set_power_mode, HCI_POWER_ON);
-    run_loop_execute();	
-    
-    return 0;
+	btstack_run_loop_execute();
+
+	return 0;
 }

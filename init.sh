@@ -60,7 +60,8 @@ echo "#-----------------------------------------#"
 
 apt-get update -y
 apt-get upgrade -y
-apt-get install -y git automake build-essential libusb-1.0-0-dev
+apt-get install -y git automake build-essential 
+apt-get install -y libusb-1.0-0 libusb-1.0-0-dbg libusb-1.0-0-dev libusb-1.0-doc
 apt-get install -y pkg-config linux-headers-$(uname -r)
 
 fi # end of block
@@ -75,7 +76,13 @@ btstack_dir=$proj_path/btstack
 if [ ! -f /usr/local/bin/hidd ]; then
 	if [ ! -d $btstack_dir ]; then
 		cd $proj_path
-		git clone https://github.com/bluekitchen/btstack.git
+		if [ -f $proj_path/btstack.zip ]; then
+			apt-get install -y unzip
+			unzip btstack.zip
+			mv btstack-master btstack
+		else 
+			git clone https://github.com/bluekitchen/btstack.git
+		fi
 	fi
 	
 	daemon_dir=$btstack_dir/port/daemon
@@ -91,14 +98,24 @@ if [ ! -f /usr/local/bin/hidd ]; then
 		./bootstrap.sh
 		sed -i "s|-Werror -Wall|-fpic -Wall|g" $daemon_dir/configure
 		sed -i "s|cp libBTstack.dylib|cp libBTstack.\$\(BTSTACK_LIB_EXTENSION\)|g" $daemon_dir/src/Makefile.in
-		sed -i "s|\/include\/btstack|\/src/*|g" $daemon_dir/src/Makefile.in
-		echo "\tcp -r $btstack_dir/platform/posix/* \$(prefix)/include" >> $daemon_dir/src/Makefile.in
+		sed -i "s|cp -r.*\/include\/btstack|#cp -r.*\/include\/btstack|g" $daemon_dir/src/Makefile.in
+		#echo "\tcp -r $btstack_dir/platform/posix/* \$(prefix)/include" >> $daemon_dir/src/Makefile.in
 	fi
 
-	./configure --with-vendor-id=$vendor_id --with-product-id=$product_id
+	./configure --with-vendor-id=$vendor_id --with-product-id=$product_id --with-hci-transport=usb
 	make clean
 	make
 	make install
+
+	# bulid port src, generate .o files
+	cd $(daemon_dir)/port/libusb
+	make
+
+	# set vim environments
+	#echo "path+=$(btstack_dir)/src" >> ~/.vimrc
+	#echo "path+=$(btstack_dir)/platform/daemon/src" >> ~/.vimrc
+	#echo "path+=$(btstack_dir)/platform/posix" >> ~/.vimrc
+	#echo "path+=$(btstack_dir)/port/posix-h4" >> ~/.vimrc
 fi
 
 

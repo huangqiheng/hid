@@ -4,6 +4,7 @@ hiddevs
 
 btstack/*
 init.json
+btstack.zip
 
 # Object files
 *.o
