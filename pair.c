@@ -34,7 +34,7 @@ int have_seen(bd_addr_t addr) {
     }
     seen_dev_t *dev = malloc(sizeof(seen_dev_t));
     memset(dev, 0, sizeof(seen_dev_t));
-    BD_ADDR_COPY(dev->addr, addr);
+    bd_addr_copy(dev->addr, addr);
     btstack_linked_list_add(&seen_devs, (linked_item_t *)dev);
     return 0;
 }

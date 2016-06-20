@@ -13,7 +13,7 @@ static int uhid_write(int fd, const struct uhid_event *ev) {
     return ret != sizeof(*ev);
 }
 
-static int process(data_source_t *ds) {
+static int process(btstack_data_source_t *ds) {
     struct uhid_event ev;
     ssize_t ret;
     ret = read(ds->fd, &ev, sizeof(ev));
@@ -62,16 +62,16 @@ void uhid_register(bthid_dev_t *dev) {
         return;
     }
 
-    dev->ds = malloc(sizeof(data_source_t));
+    dev->ds = malloc(sizeof(btstack_data_source_t));
     dev->ds->fd = fd;
     dev->ds->process = process;
-    run_loop_add_data_source(dev->ds);
+    btstack_run_loop_add_data_source(dev->ds);
 }
 
 void uhid_unregister(bthid_dev_t *dev) {
     if (!dev->ds)
         return;
-    run_loop_remove_data_source(dev->ds);
+    btstack_run_loop_remove_data_source(dev->ds);
     // auto-destroy
     close(dev->ds->fd);
     free(dev->ds);

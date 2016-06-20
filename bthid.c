@@ -4,6 +4,7 @@
 #include <btstack.h>
 #include "btstack_util.h"
 #include "hci_cmd.h"
+#include <btstack_client.h>
 #include <btstack_linked_list.h>
 #include "classic/sdp_util.h"
 #include "classic/spp_server.h"
@@ -68,18 +69,18 @@ static bthid_dev_t * finddev_cid(uint16_t cid) {
 static bthid_dev_t * newdev(bd_addr_t addr, uint16_t handle) {
     bthid_dev_t *dev = malloc(sizeof(bthid_dev_t));
     memset(dev, 0, sizeof(bthid_dev_t));
-    BD_ADDR_COPY(dev->addr, addr);
+    bd_addr_copy(dev->addr, addr);
     dev->handle = handle;
-    btstack_linked_list_add(&bthid_devs, (linked_item_t *)dev);
+    btstack_linked_list_add(&bthid_devs, (btstack_linked_item_t *)dev);
     return dev;
 }
 static void deletedev(bthid_dev_t *dev) {
-    btstack_linked_list_remove(&bthid_devs, (linked_item_t *)dev);
+    btstack_linked_list_remove(&bthid_devs, (btstack_linked_item_t *)dev);
     if (dev->descriptor)
         free(dev->descriptor);
     free(dev);
 }
-bthid_dev_t * bthid_dev_for_ds(data_source_t *ds) {
+bthid_dev_t * bthid_dev_for_ds(btstack_data_source_t *ds) {
     btstack_linked_list_iterator_t it;
     btstack_linked_list_iterator_init(&it, &bthid_devs);
     while (btstack_linked_list_iterator_has_next(&it)) {
@@ -104,11 +105,11 @@ static void outgoing_l2cap_open(bthid_dev_t *dev, int status) {
     }
 
     if (!dev->cid_interrupt) {
-        bt_send_cmd(&l2cap_create_channel, dev->addr, PSM_HID_INTERRUPT);
+        bt_send_cmd(&l2cap_create_channel_cmd, dev->addr, PSM_HID_INTERRUPT);
         return;
     }
     if (!dev->cid_control) {
-        bt_send_cmd(&l2cap_create_channel, dev->addr, PSM_HID_CONTROL);
+        bt_send_cmd(&l2cap_create_channel_cmd, dev->addr, PSM_HID_CONTROL);
         return;
     }
 
@@ -207,7 +208,7 @@ static void sdp_query_attributes(bthid_dev_t *dev, uint16_t uuid, uint16_t first
     de_add_number(ids, DE_UUID, DE_SIZE_16, uuid);
     de_create_sequence(atts);
     de_add_number(atts, DE_UINT, DE_SIZE_32, (first<<16) | last);
-    bt_send_cmd(&sdp_client_query_services, &dev->addr, ids, atts);
+    bt_send_cmd(&sdp_client_query_services_cmd, &dev->addr, ids, atts);
 
 }
 
@@ -349,7 +350,7 @@ void bthid_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet
             if (!dev)
                 dev = newdev(remote, handle);
 
-            bt_send_cmd(&l2cap_accept_connection, local_cid);
+            bt_send_cmd(&l2cap_accept_connection_cmd, local_cid);
             break;
 
         case L2CAP_EVENT_CHANNEL_OPENED:

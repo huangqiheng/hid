@@ -5,8 +5,9 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#include <btstack/btstack.h>
+#include <btstack.h>
 #include "btstack_util.h"
+#include <btstack_link_key_db_fs.h>
 
 #include "hiddevs.h"
 
@@ -63,7 +64,7 @@ static int check_and_remove(bd_addr_t addr, int remove, link_key_t key) {
     char *found = strcasestr(buf, addr_str);
 
     if (found && key)
-        sscan_link_key(found + 3*BD_ADDR_LEN, key);
+        sscanf_link_key(found + 3*BD_ADDR_LEN, key);
 
     if (!remove || !found) {
         close(fd);
@@ -116,7 +117,7 @@ void hiddevs_forall(void (*process)(bd_addr_t)) {
         pbuf = 0;
 
         if (strlen(p) != 17 ||
-            !sscan_bd_addr(p, addr)) {
+            !sscanf_bd_addr(p, addr)) {
             printf("Malformatted line in %s: \"%s\"\n", HIDDEVS_FILE, p);
             return;
         }

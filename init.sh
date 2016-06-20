@@ -3,32 +3,31 @@
 proj_path=`dirname $(readlink -f $0)`
 init_json=$proj_path/init.json
 
-if [ ! -f $init_json ]; then
-echo "#-----------------------------------------#"
-echo "# 	    setup environment           #"
-echo "#-----------------------------------------#"
-
-apt-get update
-apt-get upgrade
-apt-get install -y git automake build-essential libusb-1.0-0-dev
-apt-get install -y pkg-config linux-headers-$(uname -r)
-
-fi # end of block
 
 echo "#-----------------------------------------#"
-echo "#             check VID & PID             #"
+echo "#             Check VID & PID             #"
 echo "#-----------------------------------------#"
 
-vendor_id=''
-product_id=''
+if [ "x$1" = "x" ]; then
+	vendor_id=''
+	product_id=''
 
-if [ -f $init_json ]; then
-	if ! type jq > /dev/null; then
-		apt-get install -y jq
+	if [ -f $init_json ]; then
+		if ! type jq > /dev/null; then
+			apt-get install -y jq
+		fi
+
+		vendor_id=`cat $init_json | jq -jre '.vendor_id'`
+		product_id=`cat $init_json | jq -jre '.product_id'`
 	fi
+else 
+	vendor_id=`echo $1 | cut -d ":" -f 1`
+	product_id=`echo $1 | cut -d ":" -f 2`
 
-	vendor_id=`cat $init_json | jq -jre '.vendor_id'`
-	product_id=`cat $init_json | jq -jre '.product_id'`
+	echo "{" > $init_json
+	echo "\t\"vendor_id\" : \"$vendor_id\"," >> $init_json
+	echo "\t\"product_id\" : \"$product_id\"" >> $init_json
+	echo "}" >> $init_json
 fi
 
 if [ "x$vendor_id" = "x" ] || [ $vendor_id = "null" ]; then
@@ -52,6 +51,21 @@ else
 	echo "  product_id : $product_id"
 fi
 
+
+
+if [ ! -f $init_json ]; then
+echo "#-----------------------------------------#"
+echo "# 	    setup environment           #"
+echo "#-----------------------------------------#"
+
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y git automake build-essential libusb-1.0-0-dev
+apt-get install -y pkg-config linux-headers-$(uname -r)
+
+fi # end of block
+
+
 echo "#-----------------------------------------#"
 echo "#             compile btstack             #"
 echo "#-----------------------------------------#"
@@ -63,8 +77,14 @@ if [ ! -f /usr/local/bin/hidd ]; then
 		cd $proj_path
 		git clone https://github.com/bluekitchen/btstack.git
 	fi
-
+	
 	daemon_dir=$btstack_dir/port/daemon
+
+	if [ ! -d $daemon_dir ]; then
+		echo "btstack not ready, try again please."
+		exit
+	fi
+
 	cd $daemon_dir
 
 	if [ ! -f $daemon_dir/configure ]; then
@@ -72,6 +92,7 @@ if [ ! -f /usr/local/bin/hidd ]; then
 		sed -i "s|-Werror -Wall|-fpic -Wall|g" $daemon_dir/configure
 		sed -i "s|cp libBTstack.dylib|cp libBTstack.\$\(BTSTACK_LIB_EXTENSION\)|g" $daemon_dir/src/Makefile.in
 		sed -i "s|\/include\/btstack|\/src/*|g" $daemon_dir/src/Makefile.in
+		echo "\tcp -r $btstack_dir/platform/posix/* \$(prefix)/include" >> $daemon_dir/src/Makefile.in
 	fi
 
 	./configure --with-vendor-id=$vendor_id --with-product-id=$product_id
