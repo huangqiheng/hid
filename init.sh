@@ -72,6 +72,7 @@ echo "#             compile btstack             #"
 echo "#-----------------------------------------#"
 
 btstack_dir=$proj_path/btstack
+daemon_dir=$btstack_dir/port/daemon
 
 if [ ! -f /usr/local/bin/hidd ]; then
 	if [ ! -d $btstack_dir ]; then
@@ -84,8 +85,6 @@ if [ ! -f /usr/local/bin/hidd ]; then
 			git clone https://github.com/bluekitchen/btstack.git
 		fi
 	fi
-	
-	daemon_dir=$btstack_dir/port/daemon
 
 	if [ ! -d $daemon_dir ]; then
 		echo "btstack not ready, try again please."
@@ -97,6 +96,7 @@ if [ ! -f /usr/local/bin/hidd ]; then
 	if [ ! -f $daemon_dir/configure ]; then
 		./bootstrap.sh
 		sed -i "s|-Werror -Wall|-fpic -Wall|g" $daemon_dir/configure
+		sed -i "s|^VPATH.*classic$|&\nVPATH += \$\{BTSTACK_ROOT\}/port/libusb|gm" $daemon_dir/src/Makefile.in
 		sed -i "s|cp libBTstack.dylib|cp libBTstack.\$\(BTSTACK_LIB_EXTENSION\)|g" $daemon_dir/src/Makefile.in
 		sed -i "s|cp -r.*\/include\/btstack|#cp -r.*\/include\/btstack|g" $daemon_dir/src/Makefile.in
 		#echo "\tcp -r $btstack_dir/platform/posix/* \$(prefix)/include" >> $daemon_dir/src/Makefile.in
@@ -107,15 +107,32 @@ if [ ! -f /usr/local/bin/hidd ]; then
 	make
 	make install
 
-	# bulid port src, generate .o files
-	cd $(daemon_dir)/port/libusb
+	# build libusb example
+	example_make=$btstack_dir/example/Makefile.inc
+	libusb_so=/usr/lib/x86_64-linux-gnu/libusb-1.0.so
+	if ! grep -q "libusb" $example_make 
+	then
+		sed -i "s|^sm_pairing_central:.*$|& $libusb_so|gm" $example_make
+	else
+		echo "Already exists in example/Makefile.inc: \"$libusb_so\""
+	fi
+
+	cd $btstack_dir/port/libusb
 	make
 
 	# set vim environments
-	#echo "path+=$(btstack_dir)/src" >> ~/.vimrc
-	#echo "path+=$(btstack_dir)/platform/daemon/src" >> ~/.vimrc
-	#echo "path+=$(btstack_dir)/platform/posix" >> ~/.vimrc
-	#echo "path+=$(btstack_dir)/port/posix-h4" >> ~/.vimrc
+	bashrc=~/.vimrc
+	if ! grep -q "$btstack_dir" $bashrc
+	then
+		echo "path+=$btstack_dir/src" >> ~/.vimrc
+		echo "path+=$btstack_dir/platform/daemon/src" >> ~/.vimrc
+		echo "path+=$btstack_dir/platform/posix" >> ~/.vimrc
+		echo "path+=$btstack_dir/port/libusb" >> ~/.vimrc
+		echo "Update .bashrc file"
+	else
+		echo "Already has environment varibales"
+	fi
+
 fi
 
 
