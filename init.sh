@@ -31,6 +31,7 @@ else
 fi
 
 if [ "x$vendor_id" = "x" ] || [ $vendor_id = "null" ]; then
+
 	echo "{" > $init_json
 	echo "\t\"vendor_id\" : null," >> $init_json
 	echo "\t\"product_id\" : null" >> $init_json
@@ -38,7 +39,12 @@ if [ "x$vendor_id" = "x" ] || [ $vendor_id = "null" ]; then
 
 	echo "WARNNIUNG: The bluetooth device's vendor id and product id MUST be set."
 	echo "Check one in the list below:"
+
+	if ! type lsusb > /dev/null; then
+		apt-get install -y usbutils
+	fi
 	lsusb
+
 	echo "And fill the exactly one in file: $init_json, like this:"
 	echo "{"
 	echo "\t\"vendor_id\" : \"0a12\","
@@ -78,7 +84,10 @@ if [ ! -f /usr/local/bin/hidd ]; then
 	if [ ! -d $btstack_dir ]; then
 		cd $proj_path
 		if [ -f $proj_path/btstack.zip ]; then
-			apt-get install -y unzip
+			if ! type unzip > /dev/null; then
+				apt-get install -y unzip
+			fi
+
 			unzip btstack.zip
 			mv btstack-master btstack
 		else 
