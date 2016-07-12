@@ -21,11 +21,12 @@ class Bluetooth:
             self.manager = dbus.Interface(self.bus.get_object("org.bluez", "/"), "org.bluez.Manager")
             adapter_path = self.manager.DefaultAdapter()
             self.service = dbus.Interface(self.bus.get_object("org.bluez", adapter_path),"org.bluez.Service")
-        except Exception, e:
+        except Exception as e:
+            print(e); 
             sys.exit("Please turn on bluetooth")
         try:
             fh = open(sdp,"r")
-        except Exception, e:
+        except Exception as e:
             sys.exit("Cannot open sdp_record file")
         self.service_record = fh.read()
         fh.close()
@@ -36,11 +37,11 @@ class Bluetooth:
         os.system("sudo hciconfig hci0 name "+self.devname)
         self.soccontrol.listen(1)
         self.sockinter.listen(1)
-        print "waiting for connection"
+        print ("waiting for connection")
         self.ccontrol, self.cinfo = self.soccontrol.accept()
-        print "Control channel connected to "+self.cinfo[Bluetooth.HOST]
+        print ("Control channel connected to "+self.cinfo[Bluetooth.HOST])
         self.cinter, self.cinfo = self.sockinter.accept()
-        print "Interrupt channel connected to "+self.cinfo[Bluetooth.HOST]
+        print ("Interrupt channel connected to "+self.cinfo[Bluetooth.HOST])
 
     def sendInput(self, inp):
         str_inp = ""
