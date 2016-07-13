@@ -1,0 +1,10 @@
+btkbdd/btkbdd
+evmuxd/evmuxd
+
+*.bak
+*.o
+*.8
+*.html
+*.ps
+*.tmp
+*.swp
